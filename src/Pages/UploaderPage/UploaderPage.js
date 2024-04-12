@@ -9,6 +9,7 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import wordDocCorrect from "../../Assets/images/wordDocCorrect.png";
 
 // Components
 import ApolloS3Bucket from "./Components/ApolloS3Bucket";
@@ -952,6 +953,14 @@ const Uploader = () => {
                               className="w-6 h-6 mr-2"
                             />
                           )}
+                          {(file.key.endsWith(".doc") ||
+                            file.key.endsWith(".docx")) && (
+                            <img
+                              src={wordDocCorrect}
+                              alt="Word icon"
+                              className="w-6 h-6 mr-2"
+                            />
+                          )}
                           <span className="hover:underline cursor-pointer">
                             {file.key.split("/").pop()}{" "}
                             {/* Display file name only */}
@@ -970,7 +979,7 @@ const Uploader = () => {
                             )}
                           </span>
                           {/* Render delete icon for all files except the first one */}
-                          {index !== 0 && (
+                          {/* {index !== 0 && (
                             <DeleteIcon
                               className="ml-4 cursor-pointer hover:text-red-500"
                               onClick={() => {
@@ -979,7 +988,7 @@ const Uploader = () => {
                                 // Example: handleDeleteFile(file.key)
                               }}
                             />
-                          )}
+                          )} */}
                         </div>
                       </div>
                     ))}

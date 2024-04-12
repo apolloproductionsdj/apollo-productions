@@ -11,6 +11,7 @@ import { setTheme } from "../../redux/slices/AppSettings";
 const NavBar = () => {
   const { user, signOut } = useAuthenticator();
   console.log("user", user);
+  console.log(user.signInDetails.loginId);
 
   const { theme } = useSelector((state) => state.appSettings);
   const dispatch = useDispatch();
@@ -41,7 +42,7 @@ const NavBar = () => {
           Home
         </Link>
 
-        {user === "DJ Eric" && (
+        {user.signInDetails.loginId === "dje" && (
           <>
             <div>|</div>
             <Link

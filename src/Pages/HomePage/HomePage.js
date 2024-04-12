@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import couplesFirstDance from "../../Assets/images/couple-first-dance.jpg";
-import wordDoc from "../../Assets/images/wordDoc.jpeg";
+import wordDocCorrect from "../../Assets/images/wordDocCorrect.png";
 
 // AWS
 import {
@@ -25,6 +25,7 @@ const HomePage = () => {
   const [selectedFolder, setSelectedFolder] = useState(null); // The folder that is currently selected
   const [selectedFileToUpload, setSelectedFileToUpload] = useState(null);
   console.log("selectedFileToUpload =====>>>>>", selectedFileToUpload);
+  const wordDocIconBase64 = "data:image/png;base64,iVBORw0K...SuQmCC";
 
   const { theme } = useSelector((state) => state.appSettings); // Select the theme from the store
 
@@ -359,7 +360,7 @@ const HomePage = () => {
                               fileExtension === "docx" ||
                               fileExtension === "word"
                             ) {
-                              iconSrc = wordDoc; // Word icon URL
+                              iconSrc = wordDocCorrect; // Word icon URL
                               iconAlt = "Word icon";
                             }
 
