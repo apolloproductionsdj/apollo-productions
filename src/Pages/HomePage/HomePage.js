@@ -179,10 +179,10 @@ const HomePage = () => {
   }, []);
 
   const s3Client = new S3Client({
-    region: "us-east-1",
+    region: process.env.REACT_APP_AWS_REGION,
     credentials: {
-      accessKeyId: "AKIAVXRMSFZJCMZWVF4V", // Specify the access key
-      secretAccessKey: "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", // Specify the secret key
+      accessKeyId: process.env.REACT_APP_AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.REACT_APP_AWS_SECRET_ACCESS_KEY,
     },
   });
   const getS3Bucket = async () => {
