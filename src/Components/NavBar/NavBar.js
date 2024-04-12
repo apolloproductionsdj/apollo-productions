@@ -1,47 +1,75 @@
 import React from "react";
 import apdjLogo from "../../Assets/images/APDJ.png";
 import { Link } from "react-router-dom";
+import { useAuthenticator } from "@aws-amplify/ui-react";
+// Redux
+import { useDispatch, useSelector } from "react-redux";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import { setTheme } from "../../redux/slices/AppSettings";
 
 const NavBar = () => {
+  const { user, signOut } = useAuthenticator();
+  console.log("user", user);
+
+  const { theme } = useSelector((state) => state.appSettings);
+  const dispatch = useDispatch();
+
+  const changeTheme = () => {
+    dispatch(setTheme());
+  };
+  const ThemeIcon = theme === "light" ? DarkModeIcon : LightModeIcon;
+  const navBarClass = theme === "light" ? "bg-white" : "bg-[#111111]";
+  const textColorClass = theme === "light" ? "text-[#727176]" : "text-white"; // Adjust text color based on theme
+
   return (
-    <div className="w-full bg-[#111111] flex justify-between items-center px-8 font-sans sticky top-0">
-      {/* Logo on the left */}
-      <div className="flex justify-start items-center cursor-pointer">
+    <div
+      className={`${navBarClass} fixed w-full flex justify-between items-center px-8 font-sans top-0`}
+    >
+      <div className="flex items-center cursor-pointer">
         <img
           src={apdjLogo}
           className="object-contain h-32 w-48"
           alt="Company Logo"
         />
       </div>
-
-      {/* Items aligned to the right */}
-      <div className="flex justify-end items-center space-x-3 text-[#727176]">
+      <div className={`flex items-center space-x-3 ${textColorClass}`}>
         <Link
           to={"/"}
           className="hover:text-[#f7a44a] cursor-pointer transition duration-300"
         >
           Home
         </Link>
-        <div>|</div>
 
-        <Link
-          to={"/uploader"}
-          className="hover:text-[#f7a44a] cursor-pointer transition duration-300"
+        {user === "DJ Eric" && (
+          <>
+            <div>|</div>
+            <Link
+              to={"/uploader"}
+              className="hover:text-[#f7a44a] cursor-pointer transition duration-300"
+            >
+              Uploader
+            </Link>
+          </>
+        )}
+        <div>|</div>
+        <div className="cursor-pointer">
+          <ThemeIcon
+            className="cursor-pointer hover:text-[#f7a44a] transition duration-300 mr-2"
+            onClick={changeTheme}
+          />
+        </div>
+        <div>|</div>
+        {user?.username && (
+          <span>Welcome: {user.username}</span> // Placed near the sign-out button for consistency
+        )}
+        <div>|</div>
+        <button
+          className="cursor-pointer hover:text-[#f7a44a] transition duration-300"
+          onClick={signOut}
         >
-          Uploader
-        </Link>
-        <div>|</div>
-        <div className="cursor-pointer">
-          <p>Contracts</p>
-        </div>
-        <div>|</div>
-        <div className="cursor-pointer">
-          <p>Timelines</p>
-        </div>
-        <div>|</div>
-        <div className="cursor-pointer">
-          <p>My Account</p>
-        </div>
+          Sign out
+        </button>
       </div>
     </div>
   );

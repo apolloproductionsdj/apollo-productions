@@ -1,0 +1,20 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-apolloproductions-dev-d3f63-authRole",
+      "UnauthRoleArn": "arn:aws:iam::394156715602:role/amplify-apolloproductions-dev-d3f63-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::394156715602:role/amplify-apolloproductions-dev-d3f63-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-apolloproductions-dev-d3f63-deployment",
+      "UnauthRoleName": "amplify-apolloproductions-dev-d3f63-unauthRole",
+      "StackName": "amplify-apolloproductions-dev-d3f63",
+      "StackId": "arn:aws:cloudformation:us-east-1:394156715602:stack/amplify-apolloproductions-dev-d3f63/86e43bb0-f7c0-11ee-9f49-0affeef8e4e5",
+      "AmplifyAppId": "d25vg4308lo0cc"
+    },
+    "categories": {
+      "auth": {
+        "apolloproductionsd2cbe816": {}
+      }
+    }
+  }
+}
