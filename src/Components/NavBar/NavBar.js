@@ -1,5 +1,7 @@
 import React from "react";
 import apdjLogo from "../../Assets/images/APDJ.png";
+import apdjLogoGrey from "../../Assets/images/APDJGrey.png";
+
 import { Link } from "react-router-dom";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 // Redux
@@ -31,13 +33,15 @@ const NavBar = () => {
     return username; // Return the original username if it's not "dje"
   };
 
+  const logoSrc = theme === "light" ? apdjLogo : apdjLogoGrey;
+
   return (
     <div
       className={`${navBarClass} fixed w-full flex justify-between items-center px-8 font-sans top-0`}
     >
       <div className="flex items-center cursor-pointer">
         <img
-          src={apdjLogo}
+          src={logoSrc}
           className="object-contain h-32 w-48"
           alt="Company Logo"
         />
