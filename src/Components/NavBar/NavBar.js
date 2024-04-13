@@ -23,6 +23,14 @@ const NavBar = () => {
   const navBarClass = theme === "light" ? "bg-white" : "bg-[#111111]";
   const textColorClass = theme === "light" ? "text-[#727176]" : "text-white"; // Adjust text color based on theme
 
+  // Function to transform the username
+  const formatUsername = (username) => {
+    if (username.toLowerCase() === "dje") {
+      return "DJ E"; // Only add a space after the "J" and capitalize everything
+    }
+    return username; // Return the original username if it's not "dje"
+  };
+
   return (
     <div
       className={`${navBarClass} fixed w-full flex justify-between items-center px-8 font-sans top-0`}
@@ -62,7 +70,7 @@ const NavBar = () => {
         </div>
         <div>|</div>
         {user?.username && (
-          <span>Welcome: {user.username}</span> // Placed near the sign-out button for consistency
+          <span>Welcome: {formatUsername(user.username)}</span> // Apply the transformation here
         )}
         <div>|</div>
         <button

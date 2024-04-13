@@ -69,9 +69,53 @@ const Uploader = () => {
   }, [fileTitle, dispatch]);
 
   // Function to handle the upload when the button is clicked
+  // const handleUploadClick = async () => {
+  //   if (selectedFile) {
+  //     console.log("selectedFile ===>>", selectedFile);
+  //     setIsUploading(true);
+  //     setIsUploadComplete(false);
+  //     setUploadProgress(0); // Start with 0 progress
+
+  //     const incrementProgress = () => {
+  //       setUploadProgress((prevProgress) => {
+  //         if (prevProgress < 100) {
+  //           setTimeout(incrementProgress, 100); // Simulate progress
+  //           return prevProgress + 10; // Increment progress
+  //         }
+  //         return prevProgress;
+  //       });
+  //     };
+
+  //     incrementProgress(); // Start simulating progress
+
+  //     try {
+  //       // Your existing upload logic
+  //       await fetchPreSignedUrlAndUpload(selectedFile);
+  //       setUploadProgress(100); // Indicate that upload is fully complete
+  //       setIsUploadComplete(true); // Set upload as complete to show the checkmark
+  //     } catch (error) {
+  //       console.error("Upload failed", error);
+  //       // Handle upload error
+  //     } finally {
+  //       setIsUploading(false); // Stop the uploading state
+  //     }
+  //   }
+  // };
+
+  // Function to handle the upload when the button is clicked
   const handleUploadClick = async () => {
     if (selectedFile) {
       console.log("selectedFile ===>>", selectedFile);
+
+      // Check if the file name has two last names separated by a "-"
+      const lastNames = extractClientLastNames(selectedFile.name);
+      if (!lastNames.includes("-") || lastNames === "defaultPath") {
+        alert(
+          "The file name does not contain two last names separated by a '-'. Please rename the file and try again."
+        );
+        return; // Exit the function to prevent further execution
+      }
+
       setIsUploading(true);
       setIsUploadComplete(false);
       setUploadProgress(0); // Start with 0 progress
@@ -89,10 +133,9 @@ const Uploader = () => {
       incrementProgress(); // Start simulating progress
 
       try {
-        // Your existing upload logic
+        // Your existing upload logic here...
         await fetchPreSignedUrlAndUpload(selectedFile);
-        setUploadProgress(100); // Indicate that upload is fully complete
-        setIsUploadComplete(true); // Set upload as complete to show the checkmark
+        // Continue with your logic after the file format check passes
       } catch (error) {
         console.error("Upload failed", error);
         // Handle upload error
@@ -102,12 +145,15 @@ const Uploader = () => {
     }
   };
 
+  // Assuming the `extractClientLastNames` function exists in your code as previously defined
+
   // AWS Pre Signed URL
   const fetchPreSignedUrlAndUpload = async (file) => {
     console.log("file:", file);
 
     const extractDateFromFileName = (fileName) => {
       // Pattern to match six digits representing date in YYMMDD format
+
       const datePattern = /(\d{2})(\d{2})(\d{2})/;
       const match = fileName.match(datePattern);
 
@@ -640,31 +686,31 @@ const Uploader = () => {
   };
 
   const handleDeleteIndividualFile = async (fileKey) => {
-    // Confirm with the user that they want to delete this file
     const confirmDelete = window.confirm(
-      `Are you sure you want to delete this file?`
+      "Are you sure you want to delete this file?"
     );
-
-    if (!confirmDelete) {
-      return; // Stop if the user cancels the delete action
-    }
+    if (!confirmDelete) return;
 
     try {
       // Execute the command to delete the specific file
       await s3Client.send(
-        new DeleteObjectCommand({
-          Bucket: "apollo-dj-documents",
-          Key: fileKey,
-        })
+        new DeleteObjectCommand({ Bucket: "apollo-dj-documents", Key: fileKey })
       );
-
       console.log(`File successfully deleted: ${fileKey}`);
 
-      // Optionally, refresh the contents of the folder to reflect the deletion
-      // This could involve re-fetching the contents of the current folder
-      // For example, if you have a method to fetch folder contents, you can call it here
-      // This assumes you have a way to refetch or update your component's state to reflect the deletion
-      // handleFolderClick(selectedFolder); or another way to update the UI
+      // Update bucketContents to remove the deleted file
+      const updatedBucketContents = bucketContents.map((folder) => {
+        // Check if the current folder contains the deleted file
+        if (folder.files.some((file) => file.key === fileKey)) {
+          // Remove the deleted file from the folder's files array
+          const updatedFiles = folder.files.filter(
+            (file) => file.key !== fileKey
+          );
+          return { ...folder, files: updatedFiles };
+        }
+        return folder;
+      });
+      setBucketContents(updatedBucketContents);
     } catch (error) {
       console.error("Error deleting file:", error);
     }
@@ -844,30 +890,17 @@ const Uploader = () => {
       <div
         className={`${
           theme === "dark" ? "bg-black" : "bg-white"
-        } flex flex-col   text-gray-300 pl-8 pr-8 pt-16 pb-28`}
+        } flex flex-col text-gray-300 pl-8 pr-8 pt-16 pb-28`}
       >
         <div
           className={`${
             theme === "dark"
               ? "bg-[#2c2c2c] text-gray-300 "
               : "bg-gray-300 text-gray-600"
-          }  rounded-lg p-10`}
+          } rounded-lg p-10`}
         >
-          {bucketContents.map((folder) => {
-            console.log("folder ---->>>", folder);
-            const oldestFile = folder.files.reduce((oldest, file) => {
-              return oldest === null ||
-                new Date(file.lastModified) < new Date(oldest.lastModified)
-                ? file
-                : oldest;
-            }, null);
-
-            // Extract the date from the oldest file's key
-            const dateFromOldestFile = oldestFile
-              ? oldestFile.key.split("/")[1]
-              : "No Date";
-
-            return (
+          {bucketContents.length > 0 ? (
+            bucketContents.map((folder) => (
               <div key={folder.folderName}>
                 <div className="flex items-center justify-between p-4 mb-2 border border-gray-400">
                   <div
@@ -879,12 +912,17 @@ const Uploader = () => {
                       alt="Folder Icon"
                       className="w-6 h-6 mr-2"
                     />
-
-                    <span>{`${folder.folderName} / ${dateFromOldestFile}`}</span>
+                    <span>{`${folder.folderName} / ${new Date(
+                      folder.date
+                    ).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}`}</span>
                   </div>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent the folder click event
+                      e.stopPropagation();
                       handleDeleteFile(folder);
                     }}
                     className="text-gray-400 hover:text-red-500 transition"
@@ -892,11 +930,11 @@ const Uploader = () => {
                     <DeleteIcon />
                   </button>
                 </div>
-                {/* Check if the current folder is selected to display its contents */}
                 {selectedFolder === folder.folderName && (
                   <div className="pl-14 p-2 -mt-2 flex flex-col border border-gray-600 mb-2">
-                    {/* Upload button for files inside the selected folder */}
+                    {/* Upload Button and Files Listing */}
                     <div className="mb-4">
+                      {/* File Upload Logic */}
                       <input
                         type="file"
                         ref={fileInputRef}
@@ -906,7 +944,7 @@ const Uploader = () => {
                       {!selectedFileToUpload ? (
                         <button
                           onClick={() => fileInputRef.current.click()}
-                          className="text-white bg-[#f7a44a] hover:bg-[#e69332] font-bold py-2 px-2 rounded transition duration-300 ease-in-out"
+                          className="text-white bg-[#f7a44a] hover:bg-[#e69332] font-bold py-2 px-4 rounded transition duration-300 ease-in-out"
                         >
                           Browse Files
                         </button>
@@ -915,7 +953,7 @@ const Uploader = () => {
                           <button
                             onClick={() => handleFileUpload(selectedFolder)}
                             className="text-white bg-blue-500 hover:bg-blue-700 font-bold py-2 px-4 rounded transition duration-300 ease-in-out flex items-center justify-center"
-                            disabled={isFileLoadingToS3Folder} // Disable the button during the upload
+                            disabled={isFileLoadingToS3Folder}
                           >
                             {isFileLoadingToS3Folder ? (
                               <LoadingSpinner />
@@ -929,74 +967,71 @@ const Uploader = () => {
                         </>
                       )}
                     </div>
-                    {/* List files in the selected folder */}
-                    {folder.files.map((file, index) => (
-                      <div
-                        key={file.key}
-                        className={`flex items-center justify-between mb-2 p-4 ${
-                          theme === "light" ? "text-black" : "text-white"
-                        }`}
-                      >
-                        <div className="flex items-center">
-                          <DownloadIcon
-                            className={`mr-2 cursor-pointer ${
-                              theme === "light"
-                                ? "hover:text-black"
-                                : "hover:text-[#f7a44a]"
-                            } transition duration-300`}
-                            onClick={() => handleDownloadFile(file.key)}
-                          />
-                          {file.key.endsWith(".pdf") && (
-                            <img
-                              src="https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg"
-                              alt="PDF icon"
-                              className="w-6 h-6 mr-2"
-                            />
-                          )}
-                          {(file.key.endsWith(".doc") ||
-                            file.key.endsWith(".docx")) && (
-                            <img
-                              src={wordDocCorrect}
-                              alt="Word icon"
-                              className="w-6 h-6 mr-2"
-                            />
-                          )}
-                          <span className="hover:underline cursor-pointer">
-                            {file.key.split("/").pop()}{" "}
-                            {/* Display file name only */}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-sm text-gray-500">
-                            Date Uploaded:{" "}
-                            {new Date(file.lastModified).toLocaleDateString(
-                              "en-US",
-                              {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              }
+                    {/* Files Listing with Icons */}
+                    {/* Files Listing with Icons */}
+                    {folder.files.length > 0 ? (
+                      folder.files
+                        .map((file) => ({
+                          ...file,
+                          parsedLastModified: new Date(
+                            file.lastModified
+                          ).getTime(),
+                        })) // Parse lastModified to a comparable number
+                        .sort(
+                          (a, b) => a.parsedLastModified - b.parsedLastModified
+                        ) // Sort by lastModified
+                        .map((file, index, sortedFiles) => (
+                          <div
+                            key={file.key}
+                            className="flex items-center justify-between mb-2 p-4"
+                          >
+                            <div className="flex items-center">
+                              <DownloadIcon
+                                className="cursor-pointer hover:text-[#f7a44a] transition duration-300 mr-2"
+                                onClick={() => handleDownloadFile(file.key)}
+                              />
+                              {file.key.endsWith(".pdf") && (
+                                <img
+                                  src="https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg"
+                                  alt="PDF icon"
+                                  className="w-6 h-6 mr-2"
+                                />
+                              )}
+                              {(file.key.endsWith(".doc") ||
+                                file.key.endsWith(".docx")) && (
+                                <img
+                                  src={wordDocCorrect}
+                                  alt="Word icon"
+                                  className="w-6 h-6 mr-2"
+                                />
+                              )}
+                              <span>{file.key.split("/").pop()}</span>
+                            </div>
+                            {/* Only render DeleteIcon if it's not the oldest file */}
+                            {sortedFiles.length > 1 && index !== 0 && (
+                              <DeleteIcon
+                                className="cursor-pointer hover:text-red-500"
+                                onClick={() =>
+                                  handleDeleteIndividualFile(file.key)
+                                }
+                              />
                             )}
-                          </span>
-                          {/* Render delete icon for all files except the first one */}
-                          {/* {index !== 0 && (
-                            <DeleteIcon
-                              className="ml-4 cursor-pointer hover:text-red-500"
-                              onClick={() => {
-                                // Add your delete functionality here
-                                console.log("Delete", file.key);
-                                // Example: handleDeleteFile(file.key)
-                              }}
-                            />
-                          )} */}
-                        </div>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="text-center">
+                        No files in this folder.
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
-            );
-          })}
+            ))
+          ) : (
+            <div className="text-center">
+              You have no folders in your storage.
+            </div>
+          )}
         </div>
       </div>
     </div>
