@@ -2,6 +2,9 @@ import React from "react";
 import apdjLogo from "../../Assets/images/APDJ.png";
 import apdjLogoGrey from "../../Assets/images/APDJGrey.png";
 
+import apdjLogoGray from "../../Assets/images/APDJGray.png";
+import apdjLogoGrey1 from "../../Assets/images/APDJGray1.png";
+
 import { Link } from "react-router-dom";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 // Redux

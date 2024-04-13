@@ -280,7 +280,7 @@ const HomePage = () => {
           backgroundImage: `url(${couplesFirstDance})`,
           backgroundAttachment: "fixed",
           // Adjust these values to control the visible part of the background image
-          backgroundPosition: "50% 150%", // Centers horizontally, moves towards the bottom vertically
+          backgroundPosition: "50% 210%", // Centers horizontally, moves towards the bottom vertically
         }}
       ></div>
 
