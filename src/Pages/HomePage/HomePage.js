@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import couplesFirstDance from "../../Assets/images/couple-first-dance.jpg";
 import wordDocCorrect from "../../Assets/images/wordDocCorrect.png";
 
+import { Audio } from "react-loader-spinner";
+
 // AWS
 import {
   S3Client,
@@ -295,7 +297,17 @@ const HomePage = () => {
         >
           {/* Check for Loading State */}
           {isLoadingFromS3 ? (
-            <div className="text-center text-white">Loading...</div>
+            <div className="flex items-center justify-center space-x-2">
+              <Audio
+                height="100"
+                width="100"
+                color="#f7a44a"
+                ariaLabel="audio-loading"
+                wrapperClass="wrapper-class"
+                visible={true}
+              />
+              <span>Loading...</span>
+            </div>
           ) : (
             Object.keys(groupedFolders).map((monthYear) => (
               <div key={monthYear} className="mb-8">

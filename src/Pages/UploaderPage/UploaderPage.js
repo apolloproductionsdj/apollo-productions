@@ -14,6 +14,11 @@ import wordDocCorrect from "../../Assets/images/wordDocCorrect.png";
 // Components
 import ApolloS3Bucket from "./Components/ApolloS3Bucket";
 
+// Toast Notifications
+import { toast, ToastContainer, css } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { ConfirmToast } from "react-confirm-toast";
+
 // AWS
 import {
   S3Client,
@@ -110,12 +115,20 @@ const Uploader = () => {
       // Check if the file name has two last names separated by a "-"
       const lastNames = extractClientLastNames(selectedFile.name);
       if (!lastNames.includes("-") || lastNames === "defaultPath") {
-        alert(
-          "The file name does not contain two last names separated by a '-'. Please rename the file and try again."
+        // Use toast here instead of alert
+        toast.error(
+          "The file name does not contain two last names separated by a '-'. Please rename the file and try again.",
+          {
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+          }
         );
         return; // Exit the function to prevent further execution
       }
-
       setIsUploading(true);
       setIsUploadComplete(false);
       setUploadProgress(0); // Start with 0 progress
@@ -226,10 +239,30 @@ const Uploader = () => {
       if (uploadResponse.ok) {
         console.log("Upload successful");
         setIsUploadComplete(true); // Update state to indicate upload completion
-
-        // Here, you might want to update your application state to reflect the successful upload
+        console.log("isUploadComplete", isUploadComplete);
+        // Use toast here to notify the user of a successful upload
+        toast.success("🚀 Nice job DJ E, File uploaded successfully! 🚀 ", {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
+        resetUpload();
       } else {
         console.error("Upload failed");
+        // Use toast here to notify the user of a failed upload
+        toast.error("File upload failed. Please try again.", {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
       }
     } catch (error) {
       console.error("Error fetching pre-signed URL or uploading file:", error);
@@ -249,7 +282,7 @@ const Uploader = () => {
       <div role="status">
         <svg
           aria-hidden="true"
-          class="w-12 h-5 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600"
+          className="w-12 h-5 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600"
           viewBox="0 0 100 101"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -457,6 +490,19 @@ const Uploader = () => {
 
         await s3Client.send(new PutObjectCommand(uploadParams));
 
+        // Display a success toast notification
+        toast.success(
+          `🚀 File uploaded successfully to ${normalizedFolderPath} folder!`,
+          {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+          }
+        );
         // Construct a file object for UI
         const uploadedFile = {
           key: fileKey,
@@ -480,6 +526,15 @@ const Uploader = () => {
         setSelectedFileToUpload(null);
       } catch (error) {
         console.error("File upload failed:", error);
+        toast.error("File upload failed. Please try again.", {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
       } finally {
         setIsFileLoadingToS3Folder(false); // Stop loading regardless of outcome
       }
@@ -631,14 +686,6 @@ const Uploader = () => {
     // Assuming folder is an object with a folderName property
     const folderName = folder.folderName;
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete the folder and all its contents? ${folderName}`
-    );
-
-    if (!confirmDelete) {
-      return;
-    }
-
     try {
       // List all objects within the folder
       const listedObjects = await s3Client.send(
@@ -667,6 +714,35 @@ const Uploader = () => {
         console.log(
           `Folder and its contents successfully deleted: ${folderName}`
         );
+        toast.success(
+          `Folder "${folderName}" and its contents have been successfully deleted.`,
+          {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+          }
+        );
+        // Show success toast notification
+        // toast.info(
+        //   `The folder "${folder.folderName}" and all its contents have been successfully deleted.`,
+        //   // {
+        //   //   style: { backgroundColor: "#f7a44a", color: "white" },
+        //   // }
+        //   {
+        //     position: "top-right",
+        //     autoClose: 5000,
+        //     hideProgressBar: false,
+        //     closeOnClick: true,
+        //     pauseOnHover: true,
+        //     draggable: true,
+        //     progress: undefined,
+        //     theme: "colored",
+        //   }
+        // );
       } else {
         console.log(`No contents found for folder: ${folderName}`);
       }
@@ -679,7 +755,7 @@ const Uploader = () => {
   };
 
   const resetUpload = () => {
-    setIsUploadComplete(false);
+    setIsUploadComplete(true);
     setUploadProgress(0);
     setSelectedFile(null);
     setFileTitle("");
@@ -697,6 +773,8 @@ const Uploader = () => {
         new DeleteObjectCommand({ Bucket: "apollo-dj-documents", Key: fileKey })
       );
       console.log(`File successfully deleted: ${fileKey}`);
+      // Show success toast notification
+      toast.success(`File successfully deleted: ${fileKey}`);
 
       // Update bucketContents to remove the deleted file
       const updatedBucketContents = bucketContents.map((folder) => {
@@ -744,6 +822,7 @@ const Uploader = () => {
       // Assuming the file name (without the extension) as the title
       const title = file.path.split("/").pop().split(".")[0];
       setFileTitle(title); // Update the state with the extracted title
+      setIsUploadComplete(false);
     },
   });
   return (
@@ -752,6 +831,7 @@ const Uploader = () => {
         theme === "dark" ? "bg-black" : "bg-gray-200"
       }  h-full pt-40`}
     >
+      <ToastContainer />
       <section className="mx-auto pr-5 pl-5">
         <div
           {...getRootProps({
@@ -878,11 +958,11 @@ const Uploader = () => {
             >
               {isUploadComplete ? "Reset" : "Upload"}
             </button>
-            {isUploadComplete && (
+            {/* {isUploadComplete && (
               <div className="flex items-center text-green-500 pl-8">
                 <CheckCircleIcon /> <span>Upload Complete</span>
               </div>
-            )}
+            )} */}
           </div>
         )}
       </div>
@@ -920,7 +1000,7 @@ const Uploader = () => {
                       day: "numeric",
                     })}`}</span>
                   </div>
-                  <button
+                  {/* <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteFile(folder);
@@ -928,7 +1008,17 @@ const Uploader = () => {
                     className="text-gray-400 hover:text-red-500 transition"
                   >
                     <DeleteIcon />
-                  </button>
+                  </button> */}
+                  <ConfirmToast
+                    customFunction={() => handleDeleteFile(folder)}
+                    message={`Are you sure you want to delete ${folder.folderName}'s folder and all its contents?`}
+                    position="top-right"
+                    theme="snow"
+                  >
+                    <button className="text-gray-400 hover:text-red-500 transition">
+                      <DeleteIcon />
+                    </button>
+                  </ConfirmToast>
                 </div>
                 {selectedFolder === folder.folderName && (
                   <div className="pl-14 p-2 -mt-2 flex flex-col border border-gray-600 mb-2">
