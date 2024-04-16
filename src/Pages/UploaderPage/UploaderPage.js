@@ -62,6 +62,36 @@ const Uploader = () => {
   // ============= Ref ===============
   const fileInputRef = useRef(null);
 
+  const extractDateFromFileName = (fileName) => {
+    // Pattern to match six digits representing date in YYMMDD format
+
+    const datePattern = /(\d{2})(\d{2})(\d{2})/;
+    const match = fileName.match(datePattern);
+
+    if (match) {
+      // Extract year, month, and day from the matched pattern
+      const year = parseInt(match[1], 10) + 2000; // Assuming dates are in the 2000s
+      const month = parseInt(match[2], 10) - 1; // Month is 0-indexed in JavaScript Date
+      const day = parseInt(match[3], 10);
+
+      // Create a new date instance
+      const date = new Date(year, month, day);
+
+      // Format date as "November 03, 2024"
+      const formattedDate = date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "2-digit",
+      });
+
+      console.log(formattedDate); // Log formatted date to the console
+      return formattedDate; // Return the formatted date
+    } else {
+      console.log("No date found in file name.");
+      return null; // Return null if no date pattern is found
+    }
+  };
+
   useEffect(() => {
     console.log("Current bucketContents state:", bucketContents);
   }, [bucketContents]);
@@ -72,40 +102,6 @@ const Uploader = () => {
       dispatch(setContractTitleToBeUploaded(fileTitle));
     }
   }, [fileTitle, dispatch]);
-
-  // Function to handle the upload when the button is clicked
-  // const handleUploadClick = async () => {
-  //   if (selectedFile) {
-  //     console.log("selectedFile ===>>", selectedFile);
-  //     setIsUploading(true);
-  //     setIsUploadComplete(false);
-  //     setUploadProgress(0); // Start with 0 progress
-
-  //     const incrementProgress = () => {
-  //       setUploadProgress((prevProgress) => {
-  //         if (prevProgress < 100) {
-  //           setTimeout(incrementProgress, 100); // Simulate progress
-  //           return prevProgress + 10; // Increment progress
-  //         }
-  //         return prevProgress;
-  //       });
-  //     };
-
-  //     incrementProgress(); // Start simulating progress
-
-  //     try {
-  //       // Your existing upload logic
-  //       await fetchPreSignedUrlAndUpload(selectedFile);
-  //       setUploadProgress(100); // Indicate that upload is fully complete
-  //       setIsUploadComplete(true); // Set upload as complete to show the checkmark
-  //     } catch (error) {
-  //       console.error("Upload failed", error);
-  //       // Handle upload error
-  //     } finally {
-  //       setIsUploading(false); // Stop the uploading state
-  //     }
-  //   }
-  // };
 
   // Function to handle the upload when the button is clicked
   const handleUploadClick = async () => {
@@ -300,6 +296,84 @@ const Uploader = () => {
     );
   };
 
+  // const getS3Bucket = async () => {
+  //   const command = new ListObjectsV2Command({
+  //     Bucket: "apollo-dj-documents",
+  //     MaxKeys: 20,
+  //   });
+
+  //   try {
+  //     let isTruncated = true;
+  //     let nextContinuationToken;
+  //     let folderMap = new Map(); // Use a Map to organize folders and their files
+
+  //     while (isTruncated) {
+  //       if (nextContinuationToken) {
+  //         command.input.ContinuationToken = nextContinuationToken;
+  //       }
+
+  //       const response = await s3Client.send(command);
+
+  //       // Check if Contents exists and is iterable
+  //       if (response.Contents && Array.isArray(response.Contents)) {
+  //         for (const object of response.Contents) {
+  //           const parts = object.Key.split("/");
+  //           if (parts.length > 1) {
+  //             const folderName = parts[0];
+  //             if (!folderMap.has(folderName)) {
+  //               folderMap.set(folderName, []);
+  //             }
+  //             const metadataCommand = new HeadObjectCommand({
+  //               Bucket: "apollo-dj-documents",
+  //               Key: object.Key,
+  //             });
+  //             const metadataResponse = await s3Client.send(metadataCommand);
+  //             const customMetadata = metadataResponse.Metadata;
+  //             folderMap.get(folderName).push({
+  //               key: object.Key,
+  //               lastModified: object.LastModified,
+  //               size: object.Size,
+  //               title: customMetadata?.title || "Title not found",
+  //               userEmail: customMetadata?.user || "User Email not found",
+  //             });
+  //           }
+  //         }
+  //       }
+
+  //       isTruncated = response.IsTruncated;
+  //       nextContinuationToken = response.NextContinuationToken;
+  //     }
+
+  //     const foldersArray = Array.from(folderMap.keys()).map((folderName) => {
+  //       const files = folderMap.get(folderName);
+
+  //       console.log("files here:", files);
+
+  //       // Find the file with the oldest lastModified date
+  //       const oldestFile = files.reduce(
+  //         (oldest, file) =>
+  //           oldest.lastModified < file.lastModified ? oldest : file,
+  //         files[0]
+  //       );
+
+  //       // Attempt to extract the date from the oldest file's key
+  //       const dateMatch = oldestFile.key.match(/(\w+)\s(\d{1,2}),\s(\d{4})/);
+  //       let date = new Date();
+  //       if (dateMatch) {
+  //         date = new Date(`${dateMatch[1]} ${dateMatch[2]}, ${dateMatch[3]}`);
+  //       }
+
+  //       return { folderName, files, date };
+  //     });
+
+  //     // Sort the folders based on the extracted date
+  //     foldersArray.sort((a, b) => a.date - b.date);
+
+  //     setBucketContents(foldersArray);
+  //   } catch (err) {
+  //     console.error("Error listing bucket contents:", err);
+  //   }
+  // };
   const getS3Bucket = async () => {
     const command = new ListObjectsV2Command({
       Bucket: "apollo-dj-documents",
@@ -309,7 +383,7 @@ const Uploader = () => {
     try {
       let isTruncated = true;
       let nextContinuationToken;
-      let folderMap = new Map(); // Use a Map to organize folders and their files
+      let folderMap = new Map();
 
       while (isTruncated) {
         if (nextContinuationToken) {
@@ -318,7 +392,6 @@ const Uploader = () => {
 
         const response = await s3Client.send(command);
 
-        // Check if Contents exists and is iterable
         if (response.Contents && Array.isArray(response.Contents)) {
           for (const object of response.Contents) {
             const parts = object.Key.split("/");
@@ -350,25 +423,35 @@ const Uploader = () => {
 
       const foldersArray = Array.from(folderMap.keys()).map((folderName) => {
         const files = folderMap.get(folderName);
+        let dateExtractedFromKey = null;
 
-        // Find the file with the oldest lastModified date
-        const oldestFile = files.reduce(
-          (oldest, file) =>
-            oldest.lastModified < file.lastModified ? oldest : file,
-          files[0]
-        );
-
-        // Attempt to extract the date from the oldest file's key
-        const dateMatch = oldestFile.key.match(/(\w+)\s(\d{1,2}),\s(\d{4})/);
-        let date = new Date();
-        if (dateMatch) {
-          date = new Date(`${dateMatch[1]} ${dateMatch[2]}, ${dateMatch[3]}`);
+        // First check if any file key contains a date in the specified format
+        for (const file of files) {
+          const dateMatch = file.key.match(/(\w+)\s(\d{1,2}),\s(\d{4})/);
+          if (dateMatch) {
+            dateExtractedFromKey = new Date(
+              `${dateMatch[1]} ${dateMatch[2]}, ${dateMatch[3]}`
+            );
+            break; // Stop looking once we find a date
+          }
         }
 
-        return { folderName, files, date };
+        if (!dateExtractedFromKey) {
+          // Find the file with the oldest lastModified date if no date was found in the keys
+          const oldestFile = files.reduce(
+            (oldest, file) =>
+              oldest.lastModified < file.lastModified ? oldest : file,
+            files[0]
+          );
+
+          // Use the oldest lastModified date
+          dateExtractedFromKey = new Date(oldestFile.lastModified);
+        }
+
+        return { folderName, files, date: dateExtractedFromKey };
       });
 
-      // Sort the folders based on the extracted date
+      // Sort the folders based on the date
       foldersArray.sort((a, b) => a.date - b.date);
 
       setBucketContents(foldersArray);
@@ -437,19 +520,30 @@ const Uploader = () => {
     }
   };
 
-  // Function to upload the file to a specified folder
   // const handleFileUpload = async (folderPath) => {
-  //   console.log("Uploading to folder:", folderPath);
+  //   console.log("folderPah", folderPath);
+  //   console.log("selectedFileToUpload =====>>>", selectedFileToUpload);
+
+  //   const lastNames = extractClientLastNames(selectedFileToUpload.name);
+
+  //   console.log("lastNames ====>>", lastNames);
+
+  //   const date = extractDateFromFileName(selectedFileToUpload.name);
+
+  //   console.log("date", date);
+  //   // Construct the file key with optional date and last names
+  //   const fileKeySuffix = date && lastNames ? `${lastNames}/${date}/` : "";
+  //   const fileKey = `${
+  //     folderPath.endsWith("/") ? folderPath : `${folderPath}/`
+  //   }${fileKeySuffix}${selectedFileToUpload.name}`;
 
   //   if (selectedFileToUpload) {
-  //     const normalizedFolderPath = folderPath.endsWith("/")
-  //       ? folderPath
-  //       : `${folderPath}/`;
-  //     const fileKey = `${normalizedFolderPath}${selectedFileToUpload.name}`;
+  //     setIsFileLoadingToS3Folder(true); // Start loading
 
-  //     console.log("Full S3 Key for upload:", fileKey);
-
-  //     setIsUploadingFile(true);
+  //     // const normalizedFolderPath = folderPath.endsWith("/")
+  //     //   ? folderPath
+  //     //   : `${folderPath}/`;
+  //     // const fileKey = `${normalizedFolderPath}${selectedFileToUpload.name}`;
 
   //     try {
   //       const uploadParams = {
@@ -460,84 +554,121 @@ const Uploader = () => {
   //       };
 
   //       await s3Client.send(new PutObjectCommand(uploadParams));
-  //       console.log("File uploaded successfully to:", fileKey);
 
-  //       // Optionally, refresh the folder view here to show the new file
+  //       // Display a success toast notification
+  //       toast.success(
+  //         // `🚀 File uploaded successfully to ${normalizedFolderPath} folder!`,
+  //         `🚀 File uploaded successfully to folder!`,
+
+  //         {
+  //           position: "top-right",
+  //           autoClose: 5000,
+  //           hideProgressBar: false,
+  //           closeOnClick: true,
+  //           pauseOnHover: true,
+  //           draggable: true,
+  //           progress: undefined,
+  //         }
+  //       );
+  //       // Construct a file object for UI
+  //       const uploadedFile = {
+  //         key: fileKey,
+  //         lastModified: new Date().toISOString(), // Use current time; adjust as necessary
+  //         size: selectedFileToUpload.size,
+  //         title: "Uploaded File Title", // Adjust based on actual metadata if available
+  //         userEmail: "Uploader Email", // Adjust as necessary
+  //       };
+
+  //       // Update the UI to reflect the new file in the folder
+  //       const updatedBucketContents = bucketContents.map((folder) => {
+  //         if (folder.folderName === folderPath) {
+  //           return { ...folder, files: [...folder.files, uploadedFile] };
+  //         }
+  //         return folder;
+  //       });
+
+  //       setBucketContents(updatedBucketContents);
+
+  //       // Reset the selected file to upload after successful upload
+  //       setSelectedFileToUpload(null);
   //     } catch (error) {
   //       console.error("File upload failed:", error);
+  //       toast.error("File upload failed. Please try again.", {
+  //         position: "top-right",
+  //         autoClose: 5000,
+  //         hideProgressBar: false,
+  //         closeOnClick: true,
+  //         pauseOnHover: true,
+  //         draggable: true,
+  //         progress: undefined,
+  //       });
   //     } finally {
-  //       setIsUploadingFile(false);
+  //       setIsFileLoadingToS3Folder(false); // Stop loading regardless of outcome
   //     }
   //   }
   // };
 
   const handleFileUpload = async (folderPath) => {
-    if (selectedFileToUpload) {
-      setIsFileLoadingToS3Folder(true); // Start loading
+    if (!selectedFileToUpload) return;
 
-      const normalizedFolderPath = folderPath.endsWith("/")
-        ? folderPath
-        : `${folderPath}/`;
-      const fileKey = `${normalizedFolderPath}${selectedFileToUpload.name}`;
+    setIsFileLoadingToS3Folder(true); // Indicate the start of the upload process
 
-      try {
-        const uploadParams = {
-          Bucket: "apollo-dj-documents",
-          Key: fileKey,
-          Body: selectedFileToUpload,
-          ContentType: selectedFileToUpload.type,
-        };
+    // Extract last names and date from the file name
+    const lastNames = extractClientLastNames(selectedFileToUpload.name);
+    const date = extractDateFromFileName(selectedFileToUpload.name); // Ensure this returns a date string or null
 
-        await s3Client.send(new PutObjectCommand(uploadParams));
+    // Construct the file key incorporating last names and date if available
+    const fileKey = `${
+      folderPath.endsWith("/") ? folderPath : `${folderPath}/`
+    }${date ? `${date}/` : ""}${selectedFileToUpload.name}`;
 
-        // Display a success toast notification
-        toast.success(
-          `🚀 File uploaded successfully to ${normalizedFolderPath} folder!`,
-          {
-            position: "top-right",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-          }
-        );
-        // Construct a file object for UI
-        const uploadedFile = {
-          key: fileKey,
-          lastModified: new Date().toISOString(), // Use current time; adjust as necessary
-          size: selectedFileToUpload.size,
-          title: "Uploaded File Title", // Adjust based on actual metadata if available
-          userEmail: "Uploader Email", // Adjust as necessary
-        };
+    try {
+      // Define the parameters for the S3 upload
+      const uploadParams = {
+        Bucket: "apollo-dj-documents",
+        Key: fileKey,
+        Body: selectedFileToUpload,
+        ContentType: selectedFileToUpload.type,
+      };
 
-        // Update the UI to reflect the new file in the folder
-        const updatedBucketContents = bucketContents.map((folder) => {
-          if (folder.folderName === folderPath) {
-            return { ...folder, files: [...folder.files, uploadedFile] };
-          }
-          return folder;
-        });
+      // Perform the upload to S3
+      await s3Client.send(new PutObjectCommand(uploadParams));
+      toast.success("File uploaded successfully!", {
+        /* Toast options */
+      });
+      // Construct a file object for UI
+      const uploadedFile = {
+        key: fileKey,
+        lastModified: new Date().toISOString(), // Use current time; adjust as necessary
+        size: selectedFileToUpload.size,
+        title: "Uploaded File Title", // Adjust based on actual metadata if available
+        userEmail: "Uploader Email", // Adjust as necessary
+        date: date, // Adding the extracted date as a field
+      };
 
-        setBucketContents(updatedBucketContents);
+      // Update the UI to reflect the new file in the folder
+      const updatedBucketContents = bucketContents.map((folder) => {
+        if (folder.folderName === folderPath) {
+          return { ...folder, files: [...folder.files, uploadedFile] };
+        }
+        return folder;
+      });
 
-        // Reset the selected file to upload after successful upload
-        setSelectedFileToUpload(null);
-      } catch (error) {
-        console.error("File upload failed:", error);
-        toast.error("File upload failed. Please try again.", {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-        });
-      } finally {
-        setIsFileLoadingToS3Folder(false); // Stop loading regardless of outcome
-      }
+      setBucketContents(updatedBucketContents);
+
+      // Reset the selected file to upload after successful upload
+      setSelectedFileToUpload(null);
+      setIsUploadComplete(true); // This should cause the useEffect to re-fetch the bucket contents
+
+      // Update any necessary state to reflect the new file upload
+      // This could include adding the new file to a list of displayed files
+    } catch (error) {
+      console.error("File upload failed:", error);
+      toast.error("File upload failed. Please try again.", {
+        /* Toast options */
+      });
+    } finally {
+      setIsFileLoadingToS3Folder(false); // Reset the loading indicator
     }
   };
 
@@ -789,6 +920,8 @@ const Uploader = () => {
         return folder;
       });
       setBucketContents(updatedBucketContents);
+      // After successfully deleting the file, directly call getS3Bucket to refresh the data
+      await getS3Bucket();
     } catch (error) {
       console.error("Error deleting file:", error);
     }
@@ -1098,7 +1231,7 @@ const Uploader = () => {
                               <span>{file.key.split("/").pop()}</span>
                             </div>
                             {/* Only render DeleteIcon if it's not the oldest file */}
-                            {sortedFiles.length > 1 && index !== 0 && (
+                            {sortedFiles.length > 1 && (
                               <DeleteIcon
                                 className="cursor-pointer hover:text-red-500"
                                 onClick={() =>

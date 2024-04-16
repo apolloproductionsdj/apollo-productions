@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import couplesFirstDance from "../../Assets/images/couple-first-dance.jpg";
 import wordDocCorrect from "../../Assets/images/wordDocCorrect.png";
-
+import tempDJs2 from "../../Assets/images/temp-djs2.jpg";
 import { Audio } from "react-loader-spinner";
 
 // AWS
@@ -277,10 +277,10 @@ const HomePage = () => {
       <div
         className="overflow-hidden w-full h-96 lg:h-96 bg-cover bg-center"
         style={{
-          backgroundImage: `url(${couplesFirstDance})`,
+          backgroundImage: `url(${tempDJs2})`,
           backgroundAttachment: "fixed",
           // Adjust these values to control the visible part of the background image
-          backgroundPosition: "50% 210%", // Centers horizontally, moves towards the bottom vertically
+          backgroundPosition: "50% 255%", // Centers horizontally, moves towards the bottom vertically
         }}
       ></div>
 
