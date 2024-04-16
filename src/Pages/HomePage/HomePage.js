@@ -188,17 +188,94 @@ const HomePage = () => {
       secretAccessKey: process.env.REACT_APP_AWS_SECRET_ACCESS_KEY,
     },
   });
+  // const getS3Bucket = async () => {
+  //   const command = new ListObjectsV2Command({
+  //     Bucket: "apollo-dj-documents",
+  //     MaxKeys: 20,
+  //   });
+  //   setIsLoadingFromS3(true);
+
+  //   try {
+  //     let isTruncated = true;
+  //     let nextContinuationToken;
+  //     let folderMap = new Map(); // Use a Map to organize folders and their files
+
+  //     while (isTruncated) {
+  //       if (nextContinuationToken) {
+  //         command.input.ContinuationToken = nextContinuationToken;
+  //       }
+
+  //       const response = await s3Client.send(command);
+
+  //       // Check if Contents exists and is iterable
+  //       if (response.Contents && Array.isArray(response.Contents)) {
+  //         for (const object of response.Contents) {
+  //           const parts = object.Key.split("/");
+  //           if (parts.length > 1) {
+  //             const folderName = parts[0];
+  //             if (!folderMap.has(folderName)) {
+  //               folderMap.set(folderName, []);
+  //             }
+  //             const metadataCommand = new HeadObjectCommand({
+  //               Bucket: "apollo-dj-documents",
+  //               Key: object.Key,
+  //             });
+  //             const metadataResponse = await s3Client.send(metadataCommand);
+  //             const customMetadata = metadataResponse.Metadata;
+  //             folderMap.get(folderName).push({
+  //               key: object.Key,
+  //               lastModified: object.LastModified,
+  //               size: object.Size,
+  //               title: customMetadata?.title || "Title not found",
+  //               userEmail: customMetadata?.user || "User Email not found",
+  //             });
+  //           }
+  //         }
+  //       }
+
+  //       isTruncated = response.IsTruncated;
+  //       nextContinuationToken = response.NextContinuationToken;
+  //     }
+
+  //     const foldersArray = Array.from(folderMap.keys()).map((folderName) => {
+  //       const files = folderMap.get(folderName);
+
+  //       // Find the file with the oldest lastModified date
+  //       const oldestFile = files.reduce(
+  //         (oldest, file) =>
+  //           oldest.lastModified < file.lastModified ? oldest : file,
+  //         files[0]
+  //       );
+
+  //       // Attempt to extract the date from the oldest file's key
+  //       const dateMatch = oldestFile.key.match(/(\w+)\s(\d{1,2}),\s(\d{4})/);
+  //       let date = new Date();
+  //       if (dateMatch) {
+  //         date = new Date(`${dateMatch[1]} ${dateMatch[2]}, ${dateMatch[3]}`);
+  //       }
+
+  //       return { folderName, files, date };
+  //     });
+
+  //     // Sort the folders based on the extracted date
+  //     foldersArray.sort((a, b) => a.date - b.date);
+  //     console.log("foldersArray: ====>", foldersArray);
+  //     setBucketContents(foldersArray);
+  //     setIsLoadingFromS3(false);
+  //   } catch (err) {
+  //     console.error("Error listing bucket contents:", err);
+  //   }
+  // };
   const getS3Bucket = async () => {
     const command = new ListObjectsV2Command({
       Bucket: "apollo-dj-documents",
       MaxKeys: 20,
     });
-    setIsLoadingFromS3(true);
 
     try {
       let isTruncated = true;
       let nextContinuationToken;
-      let folderMap = new Map(); // Use a Map to organize folders and their files
+      let folderMap = new Map();
 
       while (isTruncated) {
         if (nextContinuationToken) {
@@ -207,7 +284,6 @@ const HomePage = () => {
 
         const response = await s3Client.send(command);
 
-        // Check if Contents exists and is iterable
         if (response.Contents && Array.isArray(response.Contents)) {
           for (const object of response.Contents) {
             const parts = object.Key.split("/");
@@ -239,29 +315,38 @@ const HomePage = () => {
 
       const foldersArray = Array.from(folderMap.keys()).map((folderName) => {
         const files = folderMap.get(folderName);
+        let dateExtractedFromKey = null;
 
-        // Find the file with the oldest lastModified date
-        const oldestFile = files.reduce(
-          (oldest, file) =>
-            oldest.lastModified < file.lastModified ? oldest : file,
-          files[0]
-        );
-
-        // Attempt to extract the date from the oldest file's key
-        const dateMatch = oldestFile.key.match(/(\w+)\s(\d{1,2}),\s(\d{4})/);
-        let date = new Date();
-        if (dateMatch) {
-          date = new Date(`${dateMatch[1]} ${dateMatch[2]}, ${dateMatch[3]}`);
+        // First check if any file key contains a date in the specified format
+        for (const file of files) {
+          const dateMatch = file.key.match(/(\w+)\s(\d{1,2}),\s(\d{4})/);
+          if (dateMatch) {
+            dateExtractedFromKey = new Date(
+              `${dateMatch[1]} ${dateMatch[2]}, ${dateMatch[3]}`
+            );
+            break; // Stop looking once we find a date
+          }
         }
 
-        return { folderName, files, date };
+        if (!dateExtractedFromKey) {
+          // Find the file with the oldest lastModified date if no date was found in the keys
+          const oldestFile = files.reduce(
+            (oldest, file) =>
+              oldest.lastModified < file.lastModified ? oldest : file,
+            files[0]
+          );
+
+          // Use the oldest lastModified date
+          dateExtractedFromKey = new Date(oldestFile.lastModified);
+        }
+
+        return { folderName, files, date: dateExtractedFromKey };
       });
 
-      // Sort the folders based on the extracted date
+      // Sort the folders based on the date
       foldersArray.sort((a, b) => a.date - b.date);
-      console.log("foldersArray: ====>", foldersArray);
+
       setBucketContents(foldersArray);
-      setIsLoadingFromS3(false);
     } catch (err) {
       console.error("Error listing bucket contents:", err);
     }
