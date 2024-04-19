@@ -305,6 +305,7 @@ const HomePage = () => {
   //   }
   // };
   const getS3Bucket = async () => {
+    setIsLoadingFromS3(true);
     const command = new ListObjectsV2Command({
       Bucket: "apollo-dj-documents",
       MaxKeys: 20,
@@ -385,6 +386,7 @@ const HomePage = () => {
       foldersArray.sort((a, b) => a.date - b.date);
 
       setBucketContents(foldersArray);
+      setIsLoadingFromS3(false);
     } catch (err) {
       console.error("Error listing bucket contents:", err);
     }
