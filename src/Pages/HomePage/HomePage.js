@@ -68,7 +68,38 @@ const HomePage = () => {
     return new Blob(chunks, { type: contentType });
   };
 
+  // const handleDownloadFile = async (key) => {
+  //   try {
+  //     const command = new GetObjectCommand({
+  //       Bucket: "apollo-dj-documents",
+  //       Key: key,
+  //     });
+
+  //     const response = await s3Client.send(command);
+  //     const readableStream = response.Body;
+
+  //     // Convert the ReadableStream to a Blob
+  //     const blob = await streamToBlob(readableStream, response.ContentType);
+  //     // Create a download link
+  //     const downloadLink = document.createElement("a");
+  //     downloadLink.href = URL.createObjectURL(blob);
+  //     const modifiedKey = key.includes("/") ? key.split("/")[1] : key;
+
+  //     downloadLink.download = modifiedKey.replace(/\.epub$/, ""); // Set the download file name
+  //     document.body.appendChild(downloadLink);
+
+  //     // Trigger the download
+  //     downloadLink.click();
+
+  //     // Remove the download link from the DOM
+  //     document.body.removeChild(downloadLink);
+  //   } catch (error) {
+  //     console.error("Error downloading File:", error);
+  //     // Handle error as needed
+  //   }
+  // };
   const handleDownloadFile = async (key) => {
+    console.log("key ====>", key);
     try {
       const command = new GetObjectCommand({
         Bucket: "apollo-dj-documents",
@@ -80,12 +111,19 @@ const HomePage = () => {
 
       // Convert the ReadableStream to a Blob
       const blob = await streamToBlob(readableStream, response.ContentType);
+
       // Create a download link
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(blob);
-      const modifiedKey = key.includes("/") ? key.split("/")[1] : key;
 
-      downloadLink.download = modifiedKey.replace(/\.epub$/, ""); // Set the download file name
+      // Use the last part of the key (after the last '/') as the download file name
+      const splitKey = key.split("/");
+      const fileName = splitKey[splitKey.length - 1]; // Get the last part of the path
+
+      downloadLink.download = fileName; // Set the download file name
+      console.log("downloadLink.download", downloadLink.download);
+      console.log("downloadLink", downloadLink);
+
       document.body.appendChild(downloadLink);
 
       // Trigger the download
@@ -364,8 +402,7 @@ const HomePage = () => {
         style={{
           backgroundImage: `url(${tempDJs2})`,
           backgroundAttachment: "fixed",
-          // Adjust these values to control the visible part of the background image
-          backgroundPosition: "50% 255%", // Centers horizontally, moves towards the bottom vertically
+          backgroundPosition: "50% 255%", // Adjust as needed
         }}
       ></div>
 
@@ -373,7 +410,7 @@ const HomePage = () => {
       <div
         className={`${
           theme === "light" ? "bg-white text-black" : "bg-black text-gray-300"
-        } flex flex-col bg-black  pl-8 pr-8 pt-10 pb-28`}
+        } flex flex-col pl-8 pr-8 pt-10 pb-28`}
       >
         <div
           className={`${
@@ -399,93 +436,116 @@ const HomePage = () => {
                 <h2
                   className={`${
                     theme === "dark" ? "" : "font-bold"
-                  } text-md  mb-4 text-[#f7a44a]`}
+                  } text-md mb-4 text-[#f7a44a]`}
                 >
                   {monthYear}
                 </h2>
                 <div className="space-y-4">
-                  {groupedFolders[monthYear].map((folder) => (
-                    <div
-                      key={folder.folderName}
-                      className="border border-gray-400 rounded-lg p-4"
-                    >
+                  {groupedFolders[monthYear].map((folder) => {
+                    // Check if any file in the folder includes 'Upgrades'
+                    const containsUpgrades = folder.files.some((file) =>
+                      file.key.includes("Upgrades")
+                    );
+                    return (
                       <div
-                        onClick={() => handleFolderClick(folder.folderName)}
-                        className="flex items-center cursor-pointer hover:text-gray-400"
+                        key={folder.folderName}
+                        className="border border-gray-400 rounded-lg p-4"
                       >
-                        <img
-                          src="https://cdn4.iconfinder.com/data/icons/small-n-flat/24/folder-blue-512.png"
-                          alt="Folder Icon"
-                          className="w-6 h-6 mr-2"
-                        />
-                        <span
-                          className={`${
-                            theme === "dark" ? "text-gray-300" : "text-gray-700"
-                          }font-semibold `}
+                        <div
+                          onClick={() => handleFolderClick(folder.folderName)}
+                          className="flex items-center cursor-pointer hover:text-gray-400"
                         >
-                          {folder.folderName} /
-                        </span>
-                        <span
-                          className={`${
-                            theme === "dark" ? "text-gray-400" : "text-gray-600"
-                          } pl-1  text-sm`}
-                        >
-                          {folder.date.toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </span>
-                      </div>
-                      {selectedFolder === folder.folderName && (
-                        <div className="mt-4">
-                          {folder.files.map((file) => {
-                            // Determine the file extension
-                            const fileExtension = file.key
-                              .split(".")
-                              .pop()
-                              .toLowerCase();
-                            let iconSrc = ""; // Default icon source
-                            let iconAlt = "File"; // Default icon alt text
-
-                            if (fileExtension === "pdf") {
-                              iconSrc =
-                                "https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg"; // PDF icon URL
-                              iconAlt = "PDF icon";
-                            } else if (
-                              fileExtension === "doc" ||
-                              fileExtension === "docx" ||
-                              fileExtension === "word"
-                            ) {
-                              iconSrc = wordDocCorrect; // Word icon URL
-                              iconAlt = "Word icon";
-                            }
-
-                            return (
-                              <div
-                                key={file.key}
-                                className="flex items-center mt-2 pl-5"
-                              >
-                                <DownloadIcon
-                                  className="cursor-pointer hover:text-[#f7a44a] transition duration-300 mr-2"
-                                  onClick={() => handleDownloadFile(file.key)}
-                                />
-                                {/* Conditionally render an icon if either a PDF or Word document */}
-                                {iconSrc && (
-                                  <img
-                                    src={iconSrc}
-                                    alt={iconAlt}
-                                    className="w-6 h-6 mr-2"
-                                  />
-                                )}
-                                <span>{file.key.split("/").pop()}</span>
-                              </div>
-                            );
-                          })}
+                          {containsUpgrades ? (
+                            <span
+                              role="img"
+                              aria-label="Cactus"
+                              className="mr-2"
+                            >
+                              🌵
+                            </span>
+                          ) : (
+                            <img
+                              src="https://cdn4.iconfinder.com/data/icons/small-n-flat/24/folder-blue-512.png"
+                              alt="Folder Icon"
+                              className="w-6 h-6 mr-2"
+                            />
+                          )}
+                          <span
+                            className={`${
+                              theme === "dark"
+                                ? "text-gray-300"
+                                : "text-gray-700"
+                            } font-semibold`}
+                          >
+                            {folder.folderName} /
+                          </span>
+                          <span
+                            className={`${
+                              theme === "dark"
+                                ? "text-gray-400"
+                                : "text-gray-600"
+                            } pl-1 text-sm`}
+                          >
+                            {new Date(folder.date).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </span>
+                          {containsUpgrades && (
+                            <div className="bg-green-500 text-white text-xs font-semibold ml-4 px-2.5 py-0.5 rounded dark:bg-green-700">
+                              Saguaro Package
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        {selectedFolder === folder.folderName && (
+                          <div className="mt-4">
+                            {folder.files.map((file) => {
+                              const fileExtension = file.key
+                                .split(".")
+                                .pop()
+                                .toLowerCase();
+                              let iconSrc;
+                              let iconAlt = "File";
+
+                              if (fileExtension === "pdf") {
+                                iconSrc =
+                                  "https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg";
+                                iconAlt = "PDF icon";
+                              } else if (
+                                fileExtension === "doc" ||
+                                fileExtension === "docx"
+                              ) {
+                                iconSrc = wordDocCorrect; // Assuming you've already imported this
+                                iconAlt = "Word document icon";
+                              }
+                              // More file types can be handled here
+
+                              return (
+                                <div
+                                  key={file.key}
+                                  className="flex items-center mt-2 pl-5"
+                                >
+                                  <DownloadIcon
+                                    className="cursor-pointer hover:text-[#f7a44a] transition duration-300 mr-2"
+                                    onClick={() => handleDownloadFile(file.key)}
+                                  />
+                                  {iconSrc && (
+                                    <img
+                                      src={iconSrc}
+                                      alt={iconAlt}
+                                      className="w-6 h-6 mr-2"
+                                    />
+                                  )}
+                                  <span>{file.key.split("/").pop()}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))

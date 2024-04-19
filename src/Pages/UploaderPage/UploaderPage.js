@@ -779,6 +779,7 @@ const Uploader = () => {
   };
 
   const handleDownloadFile = async (key) => {
+    console.log("key ====>", key);
     try {
       const command = new GetObjectCommand({
         Bucket: "apollo-dj-documents",
@@ -790,12 +791,19 @@ const Uploader = () => {
 
       // Convert the ReadableStream to a Blob
       const blob = await streamToBlob(readableStream, response.ContentType);
+
       // Create a download link
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(blob);
-      const modifiedKey = key.includes("/") ? key.split("/")[1] : key;
 
-      downloadLink.download = modifiedKey.replace(/\.epub$/, ""); // Set the download file name
+      // Use the last part of the key (after the last '/') as the download file name
+      const splitKey = key.split("/");
+      const fileName = splitKey[splitKey.length - 1]; // Get the last part of the path
+
+      downloadLink.download = fileName; // Set the download file name
+      console.log("downloadLink.download", downloadLink.download);
+      console.log("downloadLink", downloadLink);
+
       document.body.appendChild(downloadLink);
 
       // Trigger the download
@@ -1113,143 +1121,132 @@ const Uploader = () => {
           } rounded-lg p-10`}
         >
           {bucketContents.length > 0 ? (
-            bucketContents.map((folder) => (
-              <div key={folder.folderName}>
-                <div className="flex items-center justify-between p-4 mb-2 border border-gray-400">
-                  <div
-                    onClick={() => handleFolderClick(folder.folderName)}
-                    className="flex items-center cursor-pointer"
-                  >
-                    <img
-                      src="https://cdn4.iconfinder.com/data/icons/small-n-flat/24/folder-blue-512.png"
-                      alt="Folder Icon"
-                      className="w-6 h-6 mr-2"
-                    />
-                    <span>{`${folder.folderName} / ${new Date(
-                      folder.date
-                    ).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}`}</span>
-                  </div>
-                  {/* <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteFile(folder);
-                    }}
-                    className="text-gray-400 hover:text-red-500 transition"
-                  >
-                    <DeleteIcon />
-                  </button> */}
-                  <ConfirmToast
-                    customFunction={() => handleDeleteFile(folder)}
-                    message={`Are you sure you want to delete ${folder.folderName}'s folder and all its contents?`}
-                    position="top-right"
-                    theme="snow"
-                  >
-                    <button className="text-gray-400 hover:text-red-500 transition">
-                      <DeleteIcon />
-                    </button>
-                  </ConfirmToast>
-                </div>
-                {selectedFolder === folder.folderName && (
-                  <div className="pl-14 p-2 -mt-2 flex flex-col border border-gray-600 mb-2">
-                    {/* Upload Button and Files Listing */}
-                    <div className="mb-4">
-                      {/* File Upload Logic */}
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        style={{ display: "none" }}
-                      />
-                      {!selectedFileToUpload ? (
-                        <button
-                          onClick={() => fileInputRef.current.click()}
-                          className="text-white bg-[#f7a44a] hover:bg-[#e69332] font-bold py-2 px-4 rounded transition duration-300 ease-in-out"
-                        >
-                          Browse Files
-                        </button>
+            bucketContents.map((folder) => {
+              // Check if any file in the folder includes 'Upgrades'
+              const hasUpgrades = folder.files.some((file) =>
+                file.key.includes("Upgrades")
+              );
+
+              return (
+                <div key={folder.folderName}>
+                  <div className="flex items-center justify-between p-4 mb-2 border border-gray-400">
+                    <div
+                      onClick={() => handleFolderClick(folder.folderName)}
+                      className="flex items-center cursor-pointer"
+                    >
+                      {hasUpgrades ? (
+                        <span role="img" aria-label="Cactus" className="mr-2">
+                          🌵
+                        </span>
                       ) : (
-                        <>
+                        <img
+                          src="https://cdn4.iconfinder.com/data/icons/small-n-flat/24/folder-blue-512.png"
+                          alt="Folder Icon"
+                          className="w-6 h-6 mr-2"
+                        />
+                      )}
+                      <span>{`${folder.folderName} / ${new Date(
+                        folder.date
+                      ).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}`}</span>
+                    </div>
+                    <ConfirmToast
+                      customFunction={() => handleDeleteFile(folder)}
+                      message={`Are you sure you want to delete ${folder.folderName}'s folder and all its contents?`}
+                      position="top-right"
+                      theme="snow"
+                    >
+                      <button className="text-gray-400 hover:text-red-500 transition">
+                        <DeleteIcon />
+                      </button>
+                    </ConfirmToast>
+                  </div>
+                  {selectedFolder === folder.folderName && (
+                    <div className="pl-14 p-2 -mt-2 flex flex-col border border-gray-600 mb-2">
+                      {/* Upload Button and Files Listing */}
+                      <div className="mb-4">
+                        {/* File Upload Logic */}
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          style={{ display: "none" }}
+                        />
+                        {!selectedFileToUpload ? (
                           <button
-                            onClick={() => handleFileUpload(selectedFolder)}
-                            className="text-white bg-blue-500 hover:bg-blue-700 font-bold py-2 px-4 rounded transition duration-300 ease-in-out flex items-center justify-center"
-                            disabled={isFileLoadingToS3Folder}
+                            onClick={() => fileInputRef.current.click()}
+                            className="text-white bg-[#f7a44a] hover:bg-[#e69332] font-bold py-2 px-4 rounded transition duration-300 ease-in-out"
                           >
-                            {isFileLoadingToS3Folder ? (
-                              <LoadingSpinner />
-                            ) : (
-                              "Upload"
-                            )}
+                            Browse Files
                           </button>
-                          <span className="ml-4 text-white">
-                            File: {selectedFileToUpload.name}
-                          </span>
-                        </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleFileUpload(selectedFolder)}
+                              className="text-white bg-blue-500 hover:bg-blue-700 font-bold py-2 px-4 rounded transition duration-300 ease-in-out flex items-center justify-center"
+                              disabled={isFileLoadingToS3Folder}
+                            >
+                              {isFileLoadingToS3Folder ? (
+                                <LoadingSpinner />
+                              ) : (
+                                "Upload"
+                              )}
+                            </button>
+                            <span className="ml-4 text-white">
+                              File: {selectedFileToUpload.name}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {/* Files Listing with Icons */}
+                      {folder.files.length > 0 ? (
+                        folder.files
+                          .map((file) => ({
+                            ...file,
+                            parsedLastModified: new Date(
+                              file.lastModified
+                            ).getTime(),
+                          }))
+                          .sort(
+                            (a, b) =>
+                              a.parsedLastModified - b.parsedLastModified
+                          )
+                          .map((file, index, sortedFiles) => (
+                            <div
+                              key={file.key}
+                              className="flex items-center justify-between mb-2 p-4"
+                            >
+                              <div className="flex items-center">
+                                <DownloadIcon
+                                  className="cursor-pointer hover:text-[#f7a44a] transition duration-300 mr-2"
+                                  onClick={() => handleDownloadFile(file.key)}
+                                />
+                                {/* Render file icons based on file type here */}
+                                <span>{file.key.split("/").pop()}</span>
+                              </div>
+                              {sortedFiles.length > 1 && (
+                                <DeleteIcon
+                                  className="cursor-pointer hover:text-red-500"
+                                  onClick={() =>
+                                    handleDeleteIndividualFile(file.key)
+                                  }
+                                />
+                              )}
+                            </div>
+                          ))
+                      ) : (
+                        <div className="text-center">
+                          No files in this folder.
+                        </div>
                       )}
                     </div>
-                    {/* Files Listing with Icons */}
-                    {/* Files Listing with Icons */}
-                    {folder.files.length > 0 ? (
-                      folder.files
-                        .map((file) => ({
-                          ...file,
-                          parsedLastModified: new Date(
-                            file.lastModified
-                          ).getTime(),
-                        })) // Parse lastModified to a comparable number
-                        .sort(
-                          (a, b) => a.parsedLastModified - b.parsedLastModified
-                        ) // Sort by lastModified
-                        .map((file, index, sortedFiles) => (
-                          <div
-                            key={file.key}
-                            className="flex items-center justify-between mb-2 p-4"
-                          >
-                            <div className="flex items-center">
-                              <DownloadIcon
-                                className="cursor-pointer hover:text-[#f7a44a] transition duration-300 mr-2"
-                                onClick={() => handleDownloadFile(file.key)}
-                              />
-                              {file.key.endsWith(".pdf") && (
-                                <img
-                                  src="https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg"
-                                  alt="PDF icon"
-                                  className="w-6 h-6 mr-2"
-                                />
-                              )}
-                              {(file.key.endsWith(".doc") ||
-                                file.key.endsWith(".docx")) && (
-                                <img
-                                  src={wordDocCorrect}
-                                  alt="Word icon"
-                                  className="w-6 h-6 mr-2"
-                                />
-                              )}
-                              <span>{file.key.split("/").pop()}</span>
-                            </div>
-                            {/* Only render DeleteIcon if it's not the oldest file */}
-                            {sortedFiles.length > 1 && (
-                              <DeleteIcon
-                                className="cursor-pointer hover:text-red-500"
-                                onClick={() =>
-                                  handleDeleteIndividualFile(file.key)
-                                }
-                              />
-                            )}
-                          </div>
-                        ))
-                    ) : (
-                      <div className="text-center">
-                        No files in this folder.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))
+                  )}
+                </div>
+              );
+            })
           ) : (
             <div className="text-center">
               You have no folders in your storage.
