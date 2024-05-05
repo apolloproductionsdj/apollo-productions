@@ -4,6 +4,8 @@ import wordDocCorrect from "../../Assets/images/wordDocCorrect.png";
 import tempDJs2 from "../../Assets/images/temp-djs2.jpg";
 import { Audio } from "react-loader-spinner";
 
+// Images
+import saguaroImage from "../../Assets/images/saguaroImage.png";
 // AWS
 import {
   S3Client,
@@ -463,7 +465,11 @@ const HomePage = () => {
                               aria-label="Cactus"
                               className="mr-2"
                             >
-                              🌵
+                              <img
+                                src={saguaroImage}
+                                alt="Cactus"
+                                className="w-6 h-6 mr-2" // You can adjust the width and height as needed
+                              />
                             </span>
                           ) : (
                             <img
@@ -494,11 +500,11 @@ const HomePage = () => {
                               day: "numeric",
                             })}
                           </span>
-                          {containsUpgrades && (
+                          {/* {containsUpgrades && (
                             <div className="bg-green-500 text-white text-xs font-semibold ml-4 px-2.5 py-0.5 rounded dark:bg-green-700">
                               Saguaro Package
                             </div>
-                          )}
+                          )} */}
                         </div>
                         {selectedFolder === folder.folderName && (
                           <div className="mt-4">

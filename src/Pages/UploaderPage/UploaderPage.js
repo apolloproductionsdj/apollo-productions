@@ -3,6 +3,9 @@ import React, { useState, useEffect, useRef } from "react";
 // Libraries
 import { useDropzone } from "react-dropzone";
 
+// Images
+import saguaroImage from "../../Assets/images/saguaroImage.png";
+
 // Material UI
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 // import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
@@ -1135,8 +1138,12 @@ const Uploader = () => {
                       className="flex items-center cursor-pointer"
                     >
                       {hasUpgrades ? (
-                        <span role="img" aria-label="Cactus" className="mr-2">
-                          🌵
+                        <span role="img" aria-label="Cactus" className="mr-2 ">
+                          <img
+                            src={saguaroImage}
+                            alt="Cactus"
+                            className="w-6 h-6 mr-2" // You can adjust the width and height as needed
+                          />
                         </span>
                       ) : (
                         <img

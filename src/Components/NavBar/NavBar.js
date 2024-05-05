@@ -41,7 +41,7 @@ const NavBar = () => {
 
   return (
     <div
-      className={`${navBarClass} fixed w-full flex justify-between items-center px-8 font-sans top-0`}
+      className={`${navBarClass} fixed w-full flex justify-between items-center px-8 font-sans top-0 z-20`}
     >
       <div className="flex items-center cursor-pointer">
         <img
