@@ -223,11 +223,13 @@ const HomePage = () => {
 
   const s3Client = new S3Client({
     region: process.env.REACT_APP_AWS_REGION,
+    endpoint: "https://apollo-dj-documents.s3-accelerate.amazonaws.com", // Use the accelerated endpoint
     credentials: {
       accessKeyId: process.env.REACT_APP_AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.REACT_APP_AWS_SECRET_ACCESS_KEY,
     },
   });
+
   // const getS3Bucket = async () => {
   //   const command = new ListObjectsV2Command({
   //     Bucket: "apollo-dj-documents",

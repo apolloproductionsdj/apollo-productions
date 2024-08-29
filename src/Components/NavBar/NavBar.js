@@ -78,7 +78,7 @@ const NavBar = () => {
         </div>
         <div>|</div>
         {user?.username && (
-          <span>Welcome:: {formatUsername(user.username)}</span> // Apply the transformation here
+          <span>Welcome: {formatUsername(user.username)}</span> // Apply the transformation here
         )}
         <div>|</div>
         <button
