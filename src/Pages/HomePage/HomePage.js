@@ -13,7 +13,7 @@ import {
   HeadObjectCommand,
   GetObjectCommand,
 } from "@aws-sdk/client-s3";
-import { SkeletonLoader } from "./Components/SkeletonLoader"; // Adjust the import path as necessary
+// import { SkeletonLoader } from "./Components/SkeletonLoader"; // Adjust the import path as necessary
 import { useSelector } from "react-redux"; // Import useSelector
 
 // Toast Notifications
