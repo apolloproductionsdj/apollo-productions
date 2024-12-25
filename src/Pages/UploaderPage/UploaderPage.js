@@ -14,6 +14,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import wordDocCorrect from "../../Assets/images/wordDocCorrect.png";
 
+import { Audio } from "react-loader-spinner";
+
 // Components
 import ApolloS3Bucket from "./Components/ApolloS3Bucket";
 
@@ -31,6 +33,7 @@ import {
   GetObjectCommand,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Redux
 import { useDispatch, useSelector } from "react-redux";
@@ -52,6 +55,7 @@ const Uploader = () => {
   const [folderObjects, setFolderObjects] = useState([]); // The objects in the selected folder
   console.log("folderObjects:", folderObjects);
   const [selectedFolder, setSelectedFolder] = useState(null); // The folder that is currently selected
+  const [isLoadingFromS3, setIsLoadingFromS3] = useState(true);
 
   const { theme } = useSelector((state) => state.appSettings); // Select the theme from the store
 
@@ -108,163 +112,133 @@ const Uploader = () => {
 
   // Function to handle the upload when the button is clicked
   const handleUploadClick = async () => {
-    if (selectedFile) {
-      console.log("selectedFile ===>>", selectedFile);
+    if (!selectedFile) {
+      toast.error("Please select a file first");
+      return;
+    }
 
-      // Check if the file name has two last names separated by a "-"
-      const lastNames = extractClientLastNames(selectedFile.name);
-      if (!lastNames.includes("-") || lastNames === "defaultPath") {
-        // Use toast here instead of alert
-        toast.error(
-          "The file name does not contain two last names separated by a '-'. Please rename the file and try again.",
-          {
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-          }
-        );
-        return; // Exit the function to prevent further execution
-      }
+    // Check if the file name has two last names separated by a "-"
+    const lastNames = extractClientLastNames(selectedFile.name);
+    if (!lastNames.includes("-") || lastNames === "defaultPath") {
+      toast.error(
+        "The file name does not contain two last names separated by a '-'. Please rename the file and try again.",
+        {
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        }
+      );
+      return;
+    }
+
+    try {
       setIsUploading(true);
       setIsUploadComplete(false);
-      setUploadProgress(0); // Start with 0 progress
+      setUploadProgress(0);
 
       const incrementProgress = () => {
         setUploadProgress((prevProgress) => {
           if (prevProgress < 100) {
-            setTimeout(incrementProgress, 100); // Simulate progress
-            return prevProgress + 10; // Increment progress
+            setTimeout(incrementProgress, 100);
+            return prevProgress + 10;
           }
           return prevProgress;
         });
       };
 
-      incrementProgress(); // Start simulating progress
+      incrementProgress();
 
-      try {
-        // Your existing upload logic here...
-        await fetchPreSignedUrlAndUpload(selectedFile);
-        // Continue with your logic after the file format check passes
-      } catch (error) {
-        console.error("Upload failed", error);
-        // Handle upload error
-      } finally {
-        setIsUploading(false); // Stop the uploading state
-      }
+      await fetchPreSignedUrlAndUpload(selectedFile);
+    } catch (error) {
+      console.error("Upload failed:", error);
+      toast.error("Upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
-
   // Assuming the `extractClientLastNames` function exists in your code as previously defined
 
   // AWS Pre Signed URL
   const fetchPreSignedUrlAndUpload = async (file) => {
-    console.log("file:", file);
-
-    const extractDateFromFileName = (fileName) => {
-      // Pattern to match six digits representing date in YYMMDD format
-
-      const datePattern = /(\d{2})(\d{2})(\d{2})/;
-      const match = fileName.match(datePattern);
-
-      if (match) {
-        // Extract year, month, and day from the matched pattern
-        const year = parseInt(match[1], 10) + 2000; // Assuming dates are in the 2000s
-        const month = parseInt(match[2], 10) - 1; // Month is 0-indexed in JavaScript Date
-        const day = parseInt(match[3], 10);
-
-        // Create a new date instance
-        const date = new Date(year, month, day);
-
-        // Format date as "November 03, 2024"
-        const formattedDate = date.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "2-digit",
-        });
-
-        console.log(formattedDate); // Log formatted date to the console
-        return formattedDate; // Return the formatted date
-      } else {
-        console.log("No date found in file name.");
-        return null; // Return null if no date pattern is found
-      }
-    };
-
-    // Call the function with the file name to extract and log the date
-    const extractedDate = extractDateFromFileName(file.name);
-    console.log("Extracted Date: ", extractedDate);
-
-    // Extract client last names to use as folder name
-    const clientLastNames = extractClientLastNames(file.name);
-    // Prepare the file name with the client last names as folder name
-    const fileNameWithPath = `${clientLastNames}/${extractedDate}/${file.name}`;
-    // Assuming you have an API endpoint to get a pre-signed URL
-    const preSignedUrlApi =
-      "https://9rhmywkdb4.execute-api.us-east-1.amazonaws.com/beta/upload-url";
-
-    console.log("preSignedURL", preSignedUrlApi);
     try {
-      // Request a pre-signed URL from your API
-      const response = await fetch(preSignedUrlApi, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // Include other headers as required, such as authentication tokens
+      if (!file) {
+        throw new Error("No file selected");
+      }
+
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      // Extract client last names and date for the file path
+      const lastNames = extractClientLastNames(file.name);
+      const extractedDate = extractDateFromFileName(file.name);
+      const fileNameWithPath = `${lastNames}/${extractedDate}/${file.name}`;
+
+      console.log("Uploading with path:", fileNameWithPath);
+
+      // Create a new instance of S3Client using your existing configuration
+      const s3Client = new S3Client({
+        region: process.env.REACT_APP_AWS_REGION,
+        credentials: {
+          accessKeyId: process.env.REACT_APP_AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.REACT_APP_AWS_SECRET_ACCESS_KEY,
         },
-        body: JSON.stringify({
-          fileName: fileNameWithPath, // Use the modified file name with path
-          fileType: file.type,
-        }),
       });
 
-      console.log("response ====>>", response);
-
-      const data = await response.json();
-
-      console.log("data ===>>", data);
-
-      // Use the pre-signed URL to upload the file to S3
-      const uploadResponse = await fetch(data.url, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type, // Important: Ensure the content type matches
-        },
-        body: file,
+      // Create the pre-signed URL using AWS SDK
+      const command = new PutObjectCommand({
+        Bucket: "apollo-dj-documents",
+        Key: fileNameWithPath,
+        ContentType: file.type,
       });
 
-      if (uploadResponse.ok) {
-        console.log("Upload successful");
-        setIsUploadComplete(true); // Update state to indicate upload completion
-        console.log("isUploadComplete", isUploadComplete);
-        // Use toast here to notify the user of a successful upload
-        toast.success("🚀 Nice job DJ E, File uploaded successfully! 🚀 ", {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
+      try {
+        // Get the pre-signed URL directly from S3
+        const signedUrl = await getSignedUrl(s3Client, command, {
+          expiresIn: 3600,
         });
-        resetUpload();
-      } else {
-        console.error("Upload failed");
-        // Use toast here to notify the user of a failed upload
-        toast.error("File upload failed. Please try again.", {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
+
+        console.log("Generated pre-signed URL:", signedUrl);
+
+        // Upload using the pre-signed URL
+        const uploadResponse = await fetch(signedUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type,
+          },
+          body: file,
         });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload to S3 failed: ${uploadResponse.status}`);
+        }
+
+        setUploadProgress(100);
+        setIsUploadComplete(true);
+        toast.success("🚀 Nice job DJ E, File uploaded successfully! 🚀");
+      } catch (error) {
+        console.error("S3 upload error:", error);
+        throw error;
       }
     } catch (error) {
-      console.error("Error fetching pre-signed URL or uploading file:", error);
+      console.error("Upload error details:", error);
+      let errorMessage;
+
+      if (error.message.includes("Failed to fetch")) {
+        errorMessage =
+          "Connection error. Please check your internet connection.";
+      } else if (error.message.includes("Upload to S3 failed")) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = "Upload failed. Please try again in a few moments.";
+      }
+
+      toast.error(errorMessage);
+      setUploadProgress(0);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -378,50 +352,60 @@ const Uploader = () => {
   //   }
   // };
   const getS3Bucket = async () => {
+    setIsLoadingFromS3(true);
     const command = new ListObjectsV2Command({
       Bucket: "apollo-dj-documents",
-      MaxKeys: 20,
+      MaxKeys: 1000,
     });
 
     try {
-      let isTruncated = true;
-      let nextContinuationToken;
-      let folderMap = new Map();
+      const folderMap = new Map();
+      const response = await s3Client.send(command);
 
-      while (isTruncated) {
-        if (nextContinuationToken) {
-          command.input.ContinuationToken = nextContinuationToken;
-        }
-
-        const response = await s3Client.send(command);
-
-        if (response.Contents && Array.isArray(response.Contents)) {
-          for (const object of response.Contents) {
+      if (response.Contents && Array.isArray(response.Contents)) {
+        // Process files in parallel using Promise.all
+        await Promise.all(
+          response.Contents.map(async (object) => {
             const parts = object.Key.split("/");
             if (parts.length > 1) {
               const folderName = parts[0];
               if (!folderMap.has(folderName)) {
                 folderMap.set(folderName, []);
               }
-              const metadataCommand = new HeadObjectCommand({
-                Bucket: "apollo-dj-documents",
-                Key: object.Key,
-              });
-              const metadataResponse = await s3Client.send(metadataCommand);
-              const customMetadata = metadataResponse.Metadata;
-              folderMap.get(folderName).push({
-                key: object.Key,
-                lastModified: object.LastModified,
-                size: object.Size,
-                title: customMetadata?.title || "Title not found",
-                userEmail: customMetadata?.user || "User Email not found",
-              });
-            }
-          }
-        }
 
-        isTruncated = response.IsTruncated;
-        nextContinuationToken = response.NextContinuationToken;
+              // Get metadata in parallel
+              try {
+                const metadataCommand = new HeadObjectCommand({
+                  Bucket: "apollo-dj-documents",
+                  Key: object.Key,
+                });
+                const metadataResponse = await s3Client.send(metadataCommand);
+                const customMetadata = metadataResponse.Metadata;
+
+                folderMap.get(folderName).push({
+                  key: object.Key,
+                  lastModified: object.LastModified,
+                  size: object.Size,
+                  title: customMetadata?.title || "Title not found",
+                  userEmail: customMetadata?.user || "User Email not found",
+                });
+              } catch (metadataError) {
+                console.error(
+                  `Error fetching metadata for ${object.Key}:`,
+                  metadataError
+                );
+                // Still add the file even if metadata fetch fails
+                folderMap.get(folderName).push({
+                  key: object.Key,
+                  lastModified: object.LastModified,
+                  size: object.Size,
+                  title: "Metadata unavailable",
+                  userEmail: "Metadata unavailable",
+                });
+              }
+            }
+          })
+        );
       }
 
       const foldersArray = Array.from(folderMap.keys()).map((folderName) => {
@@ -435,19 +419,16 @@ const Uploader = () => {
             dateExtractedFromKey = new Date(
               `${dateMatch[1]} ${dateMatch[2]}, ${dateMatch[3]}`
             );
-            break; // Stop looking once we find a date
+            break;
           }
         }
 
         if (!dateExtractedFromKey) {
-          // Find the file with the oldest lastModified date if no date was found in the keys
           const oldestFile = files.reduce(
             (oldest, file) =>
               oldest.lastModified < file.lastModified ? oldest : file,
             files[0]
           );
-
-          // Use the oldest lastModified date
           dateExtractedFromKey = new Date(oldestFile.lastModified);
         }
 
@@ -460,6 +441,8 @@ const Uploader = () => {
       setBucketContents(foldersArray);
     } catch (err) {
       console.error("Error listing bucket contents:", err);
+    } finally {
+      setIsLoadingFromS3(false); // Moved this to the finally block at the end
     }
   };
 
@@ -1123,7 +1106,19 @@ const Uploader = () => {
               : "bg-gray-300 text-gray-600"
           } rounded-lg p-10`}
         >
-          {bucketContents.length > 0 ? (
+          {isLoadingFromS3 ? (
+            <div className="flex items-center justify-center space-x-2">
+              <Audio
+                height="100"
+                width="100"
+                color="#f7a44a"
+                ariaLabel="audio-loading"
+                wrapperClass="wrapper-class"
+                visible={true}
+              />
+              <span>Loading...</span>
+            </div>
+          ) : bucketContents.length > 0 ? (
             bucketContents.map((folder) => {
               // Check if any file in the folder includes 'Upgrades'
               const hasUpgrades = folder.files.some((file) =>
@@ -1142,7 +1137,7 @@ const Uploader = () => {
                           <img
                             src={saguaroImage}
                             alt="Cactus"
-                            className="w-6 h-6 mr-2" // You can adjust the width and height as needed
+                            className="w-6 h-6 mr-2"
                           />
                         </span>
                       ) : (

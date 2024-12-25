@@ -16,6 +16,11 @@ import {
 import { SkeletonLoader } from "./Components/SkeletonLoader"; // Adjust the import path as necessary
 import { useSelector } from "react-redux"; // Import useSelector
 
+// Toast Notifications
+import { toast, ToastContainer, css } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { ConfirmToast } from "react-confirm-toast";
+
 import DownloadIcon from "@mui/icons-material/Download";
 
 const HomePage = () => {
@@ -307,90 +312,153 @@ const HomePage = () => {
   //   }
   // };
   const getS3Bucket = async () => {
+    setBucketContents([]); // Clear contents immediately to avoid stale data
     setIsLoadingFromS3(true);
+
     const command = new ListObjectsV2Command({
       Bucket: "apollo-dj-documents",
-      MaxKeys: 20,
+      MaxKeys: 1000, // Increase to get more items at once
+      Delimiter: "/", // Use delimiter to get folder-level results faster
     });
 
     try {
-      let isTruncated = true;
-      let nextContinuationToken;
-      let folderMap = new Map();
+      const folderMap = new Map();
+      const firstResponse = await s3Client.send(command);
 
-      while (isTruncated) {
-        if (nextContinuationToken) {
-          command.input.ContinuationToken = nextContinuationToken;
-        }
+      // Process common prefixes (folders) first for quick initial render
+      if (firstResponse.CommonPrefixes) {
+        const folderPromises = firstResponse.CommonPrefixes.map(
+          async (prefix) => {
+            const folderName = prefix.Prefix.slice(0, -1); // Remove trailing slash
 
-        const response = await s3Client.send(command);
+            // Get just one file to determine folder date
+            const folderCommand = new ListObjectsV2Command({
+              Bucket: "apollo-dj-documents",
+              Prefix: prefix.Prefix,
+              MaxKeys: 1,
+            });
 
-        if (response.Contents && Array.isArray(response.Contents)) {
-          for (const object of response.Contents) {
-            const parts = object.Key.split("/");
-            if (parts.length > 1) {
-              const folderName = parts[0];
-              if (!folderMap.has(folderName)) {
-                folderMap.set(folderName, []);
+            try {
+              const folderResponse = await s3Client.send(folderCommand);
+              if (folderResponse.Contents && folderResponse.Contents[0]) {
+                // Get the first file's metadata
+                const metadataResponse = await s3Client.send(
+                  new HeadObjectCommand({
+                    Bucket: "apollo-dj-documents",
+                    Key: folderResponse.Contents[0].Key,
+                  })
+                );
+
+                return {
+                  folderName,
+                  files: [
+                    {
+                      key: folderResponse.Contents[0].Key,
+                      lastModified: folderResponse.Contents[0].LastModified,
+                      size: folderResponse.Contents[0].Size,
+                      title:
+                        metadataResponse.Metadata?.title || "Title not found",
+                      userEmail:
+                        metadataResponse.Metadata?.user ||
+                        "User Email not found",
+                    },
+                  ],
+                  hasUpgrades:
+                    folderResponse.Contents[0].Key.includes("Upgrades"),
+                  date: folderResponse.Contents[0].LastModified,
+                };
               }
-              const metadataCommand = new HeadObjectCommand({
-                Bucket: "apollo-dj-documents",
-                Key: object.Key,
-              });
-              const metadataResponse = await s3Client.send(metadataCommand);
-              const customMetadata = metadataResponse.Metadata;
-              folderMap.get(folderName).push({
-                key: object.Key,
-                lastModified: object.LastModified,
-                size: object.Size,
-                title: customMetadata?.title || "Title not found",
-                userEmail: customMetadata?.user || "User Email not found",
-              });
+              return null;
+            } catch (error) {
+              console.error(`Error processing folder ${folderName}:`, error);
+              return null;
             }
           }
-        }
+        );
 
-        isTruncated = response.IsTruncated;
-        nextContinuationToken = response.NextContinuationToken;
+        // Process all folders in parallel
+        const folders = (await Promise.all(folderPromises)).filter(Boolean);
+
+        // Sort folders by date
+        folders.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        setBucketContents(folders);
       }
 
-      const foldersArray = Array.from(folderMap.keys()).map((folderName) => {
-        const files = folderMap.get(folderName);
-        let dateExtractedFromKey = null;
+      // Now load the rest of the files in the background
+      const loadFullContents = async () => {
+        try {
+          if (firstResponse.Contents) {
+            const folderContentsPromises = Array.from(folderMap.keys()).map(
+              async (folderName) => {
+                const folderContents = await s3Client.send(
+                  new ListObjectsV2Command({
+                    Bucket: "apollo-dj-documents",
+                    Prefix: folderName + "/",
+                    MaxKeys: 1000,
+                  })
+                );
 
-        // First check if any file key contains a date in the specified format
-        for (const file of files) {
-          const dateMatch = file.key.match(/(\w+)\s(\d{1,2}),\s(\d{4})/);
-          if (dateMatch) {
-            dateExtractedFromKey = new Date(
-              `${dateMatch[1]} ${dateMatch[2]}, ${dateMatch[3]}`
+                if (folderContents.Contents) {
+                  const files = await Promise.all(
+                    folderContents.Contents.map(async (file) => {
+                      try {
+                        const metadataResponse = await s3Client.send(
+                          new HeadObjectCommand({
+                            Bucket: "apollo-dj-documents",
+                            Key: file.Key,
+                          })
+                        );
+
+                        return {
+                          key: file.Key,
+                          lastModified: file.LastModified,
+                          size: file.Size,
+                          title:
+                            metadataResponse.Metadata?.title ||
+                            "Title not found",
+                          userEmail:
+                            metadataResponse.Metadata?.user ||
+                            "User Email not found",
+                        };
+                      } catch (error) {
+                        console.error(
+                          `Error getting metadata for ${file.Key}:`,
+                          error
+                        );
+                        return null;
+                      }
+                    })
+                  );
+
+                  return {
+                    folderName,
+                    files: files.filter(Boolean),
+                    date: files[0]?.lastModified || new Date(),
+                  };
+                }
+                return null;
+              }
             );
-            break; // Stop looking once we find a date
+
+            const fullContents = (
+              await Promise.all(folderContentsPromises)
+            ).filter(Boolean);
+            fullContents.sort((a, b) => new Date(a.date) - new Date(b.date));
+            setBucketContents(fullContents);
           }
+        } catch (error) {
+          console.error("Error loading full contents:", error);
         }
+      };
 
-        if (!dateExtractedFromKey) {
-          // Find the file with the oldest lastModified date if no date was found in the keys
-          const oldestFile = files.reduce(
-            (oldest, file) =>
-              oldest.lastModified < file.lastModified ? oldest : file,
-            files[0]
-          );
-
-          // Use the oldest lastModified date
-          dateExtractedFromKey = new Date(oldestFile.lastModified);
-        }
-
-        return { folderName, files, date: dateExtractedFromKey };
-      });
-
-      // Sort the folders based on the date
-      foldersArray.sort((a, b) => a.date - b.date);
-
-      setBucketContents(foldersArray);
-      setIsLoadingFromS3(false);
+      // Start loading full contents in the background
+      loadFullContents();
     } catch (err) {
       console.error("Error listing bucket contents:", err);
+      toast.error("Error loading folders. Please try again.");
+    } finally {
+      setIsLoadingFromS3(false);
     }
   };
 
