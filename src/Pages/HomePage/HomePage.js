@@ -44,7 +44,7 @@ const s3Client = new S3Client({
 });
 
 const HomePage = () => {
-  const [bucketContents, setBucketContents] = useState([]); // State to hold bucket contents
+  const [bucketContents, setBucketContents] = useState([]); // State to hold bucket contentsdd
   console.log("bucketContents:", bucketContents);
   const [isLoadingSelectedFolderObjects, setIsLoadingSelectedFolderObjects] =
     useState(false);
