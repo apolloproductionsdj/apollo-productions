@@ -58,7 +58,7 @@ const HomePage = () => {
 
   const { theme } = useSelector((state) => state.appSettings); // Select the theme from the store
 
-  // Function to group folders by month and year
+  // Function to group folders by month and year too
   const groupFoldersByMonth = (folders) => {
     return folders.reduce((acc, folder) => {
       const monthYear = folder.date.toLocaleString("default", {
