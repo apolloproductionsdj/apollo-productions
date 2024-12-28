@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import couplesFirstDance from "../../Assets/images/couple-first-dance.jpg";
+// import couplesFirstDance from "../../Assets/images/couple-first-dance.jpg";
 import wordDocCorrect from "../../Assets/images/wordDocCorrect.png";
 import tempDJs2 from "../../Assets/images/temp-djs2.jpg";
 import { Audio } from "react-loader-spinner";
@@ -17,9 +17,9 @@ import {
 import { useSelector } from "react-redux"; // Import useSelector
 
 // Toast Notifications
-import { toast, ToastContainer, css } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { ConfirmToast } from "react-confirm-toast";
+// import { ConfirmToast } from "react-confirm-toast";
 
 import DownloadIcon from "@mui/icons-material/Download";
 
