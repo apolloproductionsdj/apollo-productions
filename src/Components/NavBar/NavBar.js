@@ -65,7 +65,7 @@ const NavBar = () => {
               to={"/uploader"}
               className="hover:text-[#f7a44a] cursor-pointer transition duration-300"
             >
-              Uploaderr
+              Uploader
             </Link>
           </>
         )}
