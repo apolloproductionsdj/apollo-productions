@@ -1,11 +1,9 @@
-# small comment
 version: 1
 frontend:
   phases:
     preBuild:
       commands:
         - npm ci
-        - npm install -g @aws-amplify/cli
     build:
       commands:
         - npm run build
@@ -16,4 +14,3 @@ frontend:
   cache:
     paths:
       - node_modules/**/*
-      - $(npm root)/**/*
